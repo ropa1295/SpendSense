@@ -1,4 +1,4 @@
-from models.budget import Budget
+from models.budget_plan import BudgetPlan
 from typing import List, Optional, Dict
 from datetime import datetime
 
@@ -9,19 +9,19 @@ class SenseController:
     """
     
     def __init__(self):
-        self._budget_registry: List[Budget] = []
+        self._budget_registry: List[BudgetPlan] = []
     
-    def set_budget(self, amount: float, month: str, category: Optional[str] = None) -> Budget:
+    def set_budget(self, amount: float, month: str, category: Optional[str] = None) -> BudgetPlan:
         """
         Create or update a budget entry for the specified time period.
         
         Args:
-            amount: Budget amount to allocate
+            amount: BudgetPlan amount to allocate
             month: Target month in YYYY-MM format
             category: Optional category filter (None for overall budget)
             
         Returns:
-            The created or updated Budget instance
+            The created or updated BudgetPlan instance
         """
         existing_budget = self._find_budget_by_criteria(month, category)
         
@@ -29,11 +29,11 @@ class SenseController:
             existing_budget.amount = amount
             return existing_budget
         
-        new_budget = Budget(amount, month, category)
+        new_budget = BudgetPlan(amount, month, category)
         self._budget_registry.append(new_budget)
         return new_budget
     
-    def get_budget(self, month: str, category: Optional[str] = None) -> Optional[Budget]:
+    def get_budget(self, month: str, category: Optional[str] = None) -> Optional[BudgetPlan]:
         """
         Retrieve a specific budget by month and optional category.
         
@@ -42,15 +42,15 @@ class SenseController:
             category: Optional category to filter by
             
         Returns:
-            Matching Budget instance or None if not found
+            Matching BudgetPlan instance or None if not found
         """
         return self._find_budget_by_criteria(month, category)
     
-    def get_all_budgets(self) -> List[Budget]:
+    def get_all_budgets(self) -> List[BudgetPlan]:
         """Retrieve complete list of all registered budgets."""
         return list(self._budget_registry)
     
-    def get_budgets_by_month(self, month: str) -> List[Budget]:
+    def get_budgets_by_month(self, month: str) -> List[BudgetPlan]:
         """
         Fetch all budgets associated with a specific month.
         
@@ -58,7 +58,7 @@ class SenseController:
             month: Target month in YYYY-MM format
             
         Returns:
-            List of Budget instances for the specified month
+            List of BudgetPlan instances for the specified month
         """
         return [budget for budget in self._budget_registry if budget.month == month]
     
@@ -78,14 +78,14 @@ class SenseController:
             return True
         return False
     
-    def _find_budget_by_criteria(self, month: str, category: Optional[str] = None) -> Optional[Budget]:
+    def _find_budget_by_criteria(self, month: str, category: Optional[str] = None) -> Optional[BudgetPlan]:
         """Internal helper to locate budget by month and category."""
         for budget in self._budget_registry:
             if budget.month == month and budget.category == category:
                 return budget
         return None
     
-    def _find_budget_by_id(self, budget_id: str) -> Optional[Budget]:
+    def _find_budget_by_id(self, budget_id: str) -> Optional[BudgetPlan]:
         """Internal helper to locate budget by ID."""
         for budget in self._budget_registry:
             if budget.id == budget_id:
@@ -152,7 +152,7 @@ class SenseController:
             aggregation[category_key] += expense.amount
         return aggregation
     
-    def _analyze_category_budgets(self, budgets: List[Budget], spending: Dict[str, float]) -> Dict:
+    def _analyze_category_budgets(self, budgets: List[BudgetPlan], spending: Dict[str, float]) -> Dict:
         """Helper to compare category budgets against actual spending."""
         analysis = {}
         

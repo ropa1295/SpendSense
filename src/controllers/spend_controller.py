@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 import csv
 import io
 from datetime import datetime
-from models.expense import Expense
+from models.transaction import Transaction
 
 class SpendController:
     """
@@ -11,22 +11,22 @@ class SpendController:
     """
     
     def __init__(self):
-        self._expense_ledger: List[Expense] = []
+        self._expense_ledger: List[Transaction] = []
     
     def add_expense(self, amount: float = None, category: str = None, date: str = None, 
-                   description: str = None) -> Optional[Expense]:
+                   description: str = None) -> Optional[Transaction]:
         """
         Record a new expense transaction.
         Supports both programmatic and CLI interactive modes.
         
         Args:
             amount: Transaction amount (None triggers CLI mode)
-            category: Expense category
+            category: Transaction category
             date: Transaction date in YYYY-MM-DD format
-            description: Expense description
+            description: Transaction description
             
         Returns:
-            Created Expense instance or None if creation fails
+            Created Transaction instance or None if creation fails
         """
         # Interactive CLI mode when no amount provided
         if amount is None:
@@ -36,7 +36,7 @@ class SpendController:
             amount, category, date, description = expense_data
         
         # Create and register new expense
-        new_expense = Expense(amount, category, date, description)
+        new_expense = Transaction(amount, category, date, description)
         self._expense_ledger.append(new_expense)
         
         return new_expense
@@ -57,7 +57,7 @@ class SpendController:
             
             description = input("Enter description: ")
             
-            print(f"Expense recorded successfully!")
+            print(f"Transaction recorded successfully!")
             return (amount, category, date, description)
             
         except ValueError:
@@ -67,12 +67,12 @@ class SpendController:
             print(f"Error collecting input: {error}")
             return None
     
-    def get_all_expenses(self) -> List[Expense]:
+    def get_all_expenses(self) -> List[Transaction]:
         """
         Retrieve complete collection of all recorded expenses.
         
         Returns:
-            List of all Expense instances
+            List of all Transaction instances
         """
         return list(self._expense_ledger)
     
@@ -82,13 +82,13 @@ class SpendController:
             print("No expenses found.")
             return
         
-        print("\n--- All Expenses ---")
+        print("\n--- All Transactions ---")
         for record in self._expense_ledger:
             print(f"ID: {record.id[:8]}... | Amount: ${record.amount} | "
                   f"Category: {record.category} | Date: {record.date} | "
                   f"Description: {record.description}")
     
-    def get_expense_by_id(self, expense_id: str) -> Optional[Expense]:
+    def get_expense_by_id(self, expense_id: str) -> Optional[Transaction]:
         """
         Locate a specific expense by its unique identifier.
         Supports both full ID and partial ID prefix matching.
@@ -97,11 +97,11 @@ class SpendController:
             expense_id: Full or partial expense ID
             
         Returns:
-            Matching Expense instance or None if not found
+            Matching Transaction instance or None if not found
         """
         return self._search_expense_by_id(expense_id)
     
-    def _search_expense_by_id(self, expense_id: str) -> Optional[Expense]:
+    def _search_expense_by_id(self, expense_id: str) -> Optional[Transaction]:
         """Internal helper for ID-based expense lookup."""
         for record in self._expense_ledger:
             if record.id == expense_id or record.id.startswith(expense_id):
@@ -117,7 +117,7 @@ class SpendController:
         target_expense = self._search_expense_by_id(expense_id)
         
         if not target_expense:
-            print("Expense not found.")
+            print("Transaction not found.")
             return
         
         print(f"Current expense: {target_expense}")
@@ -134,14 +134,14 @@ class SpendController:
                 date=updated_data['date'],
                 description=updated_data['description']
             )
-            print("Expense updated successfully!")
+            print("Transaction updated successfully!")
             
         except ValueError:
             print("Invalid amount. Please enter a numeric value.")
         except Exception as error:
             print(f"Error updating expense: {error}")
     
-    def _gather_update_data(self, current_expense: Expense) -> Dict[str, Any]:
+    def _gather_update_data(self, current_expense: Transaction) -> Dict[str, Any]:
         """Helper to collect updated expense data from CLI."""
         amount_input = input(f"Enter new amount (current: {current_expense.amount}): ")
         amount = float(amount_input) if amount_input else current_expense.amount
@@ -158,7 +158,7 @@ class SpendController:
         }
     
     def update_expense(self, expense_id: str, amount: float = None, category: str = None, 
-                      date: str = None, description: str = None) -> Optional[Expense]:
+                      date: str = None, description: str = None) -> Optional[Transaction]:
         """
         Modify an existing expense with new values.
         Only updates fields that are explicitly provided (not None).
@@ -171,7 +171,7 @@ class SpendController:
             description: New description (optional)
             
         Returns:
-            Updated Expense instance or None if not found
+            Updated Transaction instance or None if not found
         """
         target_expense = self._search_expense_by_id(expense_id)
         
@@ -211,15 +211,15 @@ class SpendController:
         if target_expense:
             self._expense_ledger.remove(target_expense)
             if cli_mode:
-                print("Expense deleted successfully!")
+                print("Transaction deleted successfully!")
             return True
         else:
             if cli_mode:
-                print("Expense not found.")
+                print("Transaction not found.")
             return False
     
     def filter_expenses(self, category: str = None, date_from: str = None, 
-                       date_to: str = None, tag: str = None) -> List[Expense]:
+                       date_to: str = None, tag: str = None) -> List[Transaction]:
         """
         Filter expenses based on various criteria.
         Supports both programmatic filtering and interactive CLI mode.
@@ -257,17 +257,17 @@ class SpendController:
         category = input("Enter category (or press Enter to skip): ") or None
         return category, None
     
-    def _filter_by_category(self, expenses: List[Expense], category: str) -> List[Expense]:
+    def _filter_by_category(self, expenses: List[Transaction], category: str) -> List[Transaction]:
         """Helper to filter expenses by category (case-insensitive)."""
         return [exp for exp in expenses if exp.category.lower() == category.lower()]
     
-    def _display_filtered_results(self, filtered: List[Expense]):
+    def _display_filtered_results(self, filtered: List[Transaction]):
         """Helper to display filtered results in CLI mode."""
         if not filtered:
             print("No expenses found matching the criteria.")
             return
         
-        print(f"\n--- Filtered Expenses ({len(filtered)} found) ---")
+        print(f"\n--- Filtered Transactions ({len(filtered)} found) ---")
         for record in filtered:
             print(f"ID: {record.id[:8]}... | Amount: ${record.amount} | "
                   f"Category: {record.category} | Date: {record.date}")

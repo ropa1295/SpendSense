@@ -13,253 +13,255 @@ from collections import defaultdict
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 CORS(app)
 
-# Configure Flask-RESTX
+# Initialize Flask-RESTX API
 api = Api(
     app,
-    version='1.0',
-    title='Expense Tracker API',
-    description='A simple expense tracking API with CRUD operations, filtering, CSV export, and budget management',
+    version='2.0',
+    title='SpendSense Financial Management API',
+    description='Smart personal finance tracking with transaction management, budget planning, analytics, and data export capabilities',
     doc='/api/docs/',
     prefix='/api'
 )
 
-# Create namespaces
-ns_expenses = api.namespace('expenses', description='Expense operations')
-ns_budgets = api.namespace('budgets', description='Budget operations')
-
+# Initialize controllers
 spend_controller = SpendController()
 sense_controller = SenseController()
 
-# Define models for API documentation
-expense_model = api.model('Expense', {
-    'id': fields.String(readonly=True, description='Unique expense identifier'),
-    'amount': fields.Float(required=True, description='Expense amount', example=25.50),
-    'category': fields.String(required=True, description='Expense category', example='Food'),
-    'date': fields.String(description='Expense date (YYYY-MM-DD)', example='2024-10-24'),
-    'description': fields.String(required=True, description='Expense description', example='Lunch'),
-    'created_at': fields.String(readonly=True, description='Creation timestamp')
+# Create API namespaces
+ns_expenses = api.namespace('expenses', description='Transaction and spending management')
+ns_budgets = api.namespace('budgets', description='Financial planning and budget control')
+
+# API Documentation Models
+expense_model = api.model('Transaction', {
+    'id': fields.String(readonly=True, description='Transaction unique identifier'),
+    'amount': fields.Float(required=True, description='Transaction amount', example=25.50),
+    'category': fields.String(required=True, description='Spending category', example='Food'),
+    'date': fields.String(description='Transaction date (YYYY-MM-DD)', example='2024-10-24'),
+    'description': fields.String(required=True, description='Transaction notes', example='Lunch'),
+    'created_at': fields.String(readonly=True, description='Record creation timestamp')
 })
 
-budget_model = api.model('Budget', {
-    'id': fields.String(readonly=True, description='Unique budget identifier'),
-    'amount': fields.Float(required=True, description='Budget amount', example=1000.00),
-    'month': fields.String(required=True, description='Month (YYYY-MM)', example='2024-10'),
-    'category': fields.String(description='Category (null for total budget)', example='Food'),
-    'created_at': fields.String(readonly=True, description='Creation timestamp')
+expense_input_model = api.model('TransactionInput', {
+    'amount': fields.Float(required=True, description='Transaction amount', example=25.50),
+    'category': fields.String(required=True, description='Spending category', example='Food'),
+    'date': fields.String(description='Transaction date (YYYY-MM-DD)', example='2024-10-24'),
+    'description': fields.String(required=True, description='Transaction notes', example='Lunch')
 })
 
-budget_input_model = api.model('BudgetInput', {
-    'amount': fields.Float(required=True, description='Budget amount', example=1000.00),
-    'month': fields.String(required=True, description='Month (YYYY-MM)', example='2024-10'),
-    'category': fields.String(description='Category (leave empty for total budget)', example='Food')
-})
-
-expense_input_model = api.model('ExpenseInput', {
-    'amount': fields.Float(required=True, description='Expense amount', example=25.50),
-    'category': fields.String(required=True, description='Expense category', example='Food'),
-    'date': fields.String(description='Expense date (YYYY-MM-DD)', example='2024-10-24'),
-    'description': fields.String(required=True, description='Expense description', example='Lunch')
-})
-
-expense_list_model = api.model('ExpenseList', {
+expense_list_model = api.model('TransactionList', {
     'expenses': fields.List(fields.Nested(expense_model)),
-    'count': fields.Integer(description='Total number of expenses')
+    'count': fields.Integer(description='Total transaction count')
 })
 
-response_model = api.model('Response', {
-    'success': fields.Boolean(description='Success status'),
-    'expense': fields.Nested(expense_model, description='Expense data'),
-    'message': fields.String(description='Response message')
+response_model = api.model('ApiResponse', {
+    'success': fields.Boolean(description='Operation success indicator'),
+    'expense': fields.Nested(expense_model, description='Transaction data'),
+    'message': fields.String(description='Status message')
 })
 
-# Web Interface Route (not in API namespace)
+budget_model = api.model('BudgetPlan', {
+    'id': fields.String(readonly=True, description='Budget plan identifier'),
+    'amount': fields.Float(required=True, description='Allocated budget amount', example=1000.00),
+    'month': fields.String(required=True, description='Budget period (YYYY-MM)', example='2024-10'),
+    'category': fields.String(description='Spending category (optional for overall budget)', example='Food'),
+    'created_at': fields.String(readonly=True, description='Plan creation timestamp')
+})
+
+budget_input_model = api.model('BudgetPlanInput', {
+    'amount': fields.Float(required=True, description='Budget allocation amount', example=1000.00),
+    'month': fields.String(required=True, description='Budget period (YYYY-MM)', example='2024-10'),
+    'category': fields.String(description='Spending category (optional)', example='Food')
+})
+
+# Primary Web Interface
 @app.route('/')
-def index():
-    """Render the main web interface"""
+def home_dashboard():
+    """Serve the main SpendSense dashboard"""
     return render_template('index.html')
 
-# API Routes with documentation
+# Transaction Management Endpoints
 @ns_expenses.route('')
-class ExpenseListResource(Resource):
-    @ns_expenses.doc('list_expenses', params={
-        'category': 'Filter by category',
-        'tag': 'Filter by tag'
+class TransactionCollection(Resource):
+    @ns_expenses.doc('retrieve_all_transactions', params={
+        'category': 'Category filter',
+        'tag': 'Tag filter'
     })
     @ns_expenses.marshal_with(expense_list_model)
     def get(self):
-        """List all expenses with optional filtering"""
-        category = request.args.get('category')
-        tag = request.args.get('tag')
+        """Retrieve all transactions with optional category/tag filtering"""
+        category_filter = request.args.get('category')
+        tag_filter = request.args.get('tag')
         
-        if category or tag:
-            expenses = spend_controller.filter_expenses(category=category, tag=tag)
+        if category_filter or tag_filter:
+            transaction_list = spend_controller.filter_expenses(category=category_filter, tag=tag_filter)
         else:
-            expenses = spend_controller.get_all_expenses()
+            transaction_list = spend_controller.get_all_expenses()
         
         return {
-            'expenses': [expense.to_dict() for expense in expenses],
-            'count': len(expenses)
+            'expenses': [txn.to_dict() for txn in transaction_list],
+            'count': len(transaction_list)
         }
     
-    @ns_expenses.doc('create_expense')
+    @ns_expenses.doc('record_new_transaction')
     @ns_expenses.expect(expense_input_model, validate=True)
     @ns_expenses.marshal_with(response_model, code=201)
-    @ns_expenses.response(400, 'Validation error')
+    @ns_expenses.response(400, 'Invalid input data')
     def post(self):
-        """Create a new expense"""
-        data = api.payload
+        """Record a new financial transaction"""
+        payload = api.payload
         
         try:
-            amount = float(data['amount'])
-            category = data['category']
-            date = data.get('date', datetime.now().strftime("%Y-%m-%d"))
-            description = data.get('description', '')
+            txn_amount = float(payload['amount'])
+            txn_category = payload['category']
+            txn_date = payload.get('date', datetime.now().strftime("%Y-%m-%d"))
+            txn_notes = payload.get('description', '')
             
-            expense = spend_controller.add_expense(amount, category, date, description)
+            new_expense = spend_controller.add_expense(txn_amount, txn_category, txn_date, txn_notes)
             
-            # Return response in expected format for web UI
-            response = {
+            # Format response for web interface compatibility
+            api_response = {
                 'success': True,
-                'expense': expense.to_dict(),
-                'message': 'Expense created successfully'
+                'expense': new_expense.to_dict(),
+                'message': 'Transaction recorded successfully'
             }
-            return response, 201
+            return api_response, 201
         except KeyError as e:
-            api.abort(400, f'Missing required field: {str(e)}')
+            api.abort(400, f'Required field missing: {str(e)}')
         except ValueError as e:
-            api.abort(400, f'Invalid value: {str(e)}')
+            api.abort(400, f'Invalid data format: {str(e)}')
         except Exception as e:
-            api.abort(500, f'Error creating expense: {str(e)}')
+            api.abort(500, f'Transaction creation failed: {str(e)}')
 
 @ns_expenses.route('/<string:expense_id>')
-@ns_expenses.param('expense_id', 'The expense identifier')
-class ExpenseResource(Resource):
-    @ns_expenses.doc('get_expense')
-    @ns_expenses.response(200, 'Success', expense_model)
-    @ns_expenses.response(404, 'Expense not found')
+@ns_expenses.param('expense_id', 'Transaction identifier')
+class TransactionResource(Resource):
+    @ns_expenses.doc('fetch_transaction_details')
+    @ns_expenses.response(200, 'Transaction found', expense_model)
+    @ns_expenses.response(404, 'Transaction not found')
     def get(self, expense_id):
-        """Get a specific expense by ID"""
-        expense = spend_controller.get_expense_by_id(expense_id)
-        if expense:
-            return {'expense': expense.to_dict()}
-        api.abort(404, f'Expense {expense_id} not found')
+        """Fetch details of a specific transaction"""
+        transaction = spend_controller.get_expense_by_id(expense_id)
+        if transaction:
+            return {'expense': transaction.to_dict()}
+        api.abort(404, f'Transaction {expense_id} does not exist')
     
-    @ns_expenses.doc('update_expense')
+    @ns_expenses.doc('modify_transaction')
     @ns_expenses.expect(expense_input_model)
     @ns_expenses.marshal_with(response_model)
-    @ns_expenses.response(404, 'Expense not found')
+    @ns_expenses.response(404, 'Transaction not found')
     def put(self, expense_id):
-        """Update an existing expense"""
-        data = api.payload
+        """Modify an existing transaction record"""
+        payload = api.payload
         
         try:
-            amount = float(data.get('amount')) if data.get('amount') else None
-            category = data.get('category')
-            date = data.get('date')
-            description = data.get('description')
+            updated_amount = float(payload.get('amount')) if payload.get('amount') else None
+            updated_category = payload.get('category')
+            updated_date = payload.get('date')
+            updated_notes = payload.get('description')
             
-            updated_expense = spend_controller.update_expense(
-                expense_id, amount, category, date, description
+            modified_expense = spend_controller.update_expense(
+                expense_id, updated_amount, updated_category, updated_date, updated_notes
             )
             
-            if updated_expense:
+            if modified_expense:
                 return {
                     'success': True,
-                    'expense': updated_expense.to_dict(),
-                    'message': 'Expense updated successfully'
+                    'expense': modified_expense.to_dict(),
+                    'message': 'Transaction modified successfully'
                 }
-            api.abort(404, f'Expense {expense_id} not found')
+            api.abort(404, f'Transaction {expense_id} does not exist')
         except ValueError as e:
-            api.abort(400, f'Invalid value: {str(e)}')
+            api.abort(400, f'Invalid data format: {str(e)}')
         except Exception as e:
-            api.abort(500, f'Error updating expense: {str(e)}')
+            api.abort(500, f'Transaction update failed: {str(e)}')
     
-    @ns_expenses.doc('delete_expense')
-    @ns_expenses.response(200, 'Success')
-    @ns_expenses.response(404, 'Expense not found')
+    @ns_expenses.doc('remove_transaction')
+    @ns_expenses.response(200, 'Transaction removed')
+    @ns_expenses.response(404, 'Transaction not found')
     def delete(self, expense_id):
-        """Delete an expense"""
+        """Remove a transaction from records"""
         if spend_controller.delete_expense(expense_id):
-            return {'success': True, 'message': 'Expense deleted successfully'}
-        api.abort(404, f'Expense {expense_id} not found')
+            return {'success': True, 'message': 'Transaction removed successfully'}
+        api.abort(404, f'Transaction {expense_id} does not exist')
 
 @ns_expenses.route('/export/csv')
-class ExportCSVResource(Resource):
-    @ns_expenses.doc('export_csv')
-    @ns_expenses.response(200, 'CSV file')
+class DataExportResource(Resource):
+    @ns_expenses.doc('export_transactions_csv')
+    @ns_expenses.response(200, 'CSV export file generated')
     def get(self):
-        """Export all expenses to CSV format"""
-        csv_data = spend_controller.export_to_csv()
+        """Generate CSV export of all transactions"""
+        csv_content = spend_controller.export_to_csv()
         
-        output = io.BytesIO()
-        output.write(csv_data.encode('utf-8'))
-        output.seek(0)
+        buffer = io.BytesIO()
+        buffer.write(csv_content.encode('utf-8'))
+        buffer.seek(0)
         
+        timestamp = datetime.now().strftime("%Y%m%d")
         return send_file(
-            output,
+            buffer,
             mimetype='text/csv',
             as_attachment=True,
-            download_name=f'expenses_{datetime.now().strftime("%Y%m%d")}.csv'
+            download_name=f'spendsense_transactions_{timestamp}.csv'
         )
 
-# Budget Routes
+# Budget Planning Endpoints
 @ns_budgets.route('')
-class BudgetListResource(Resource):
-    @ns_budgets.doc('list_budgets')
+class BudgetPlanCollection(Resource):
+    @ns_budgets.doc('retrieve_all_budgets')
     def get(self):
-        """List all budgets"""
-        budgets = sense_controller.get_all_budgets()
+        """Retrieve all budget plans"""
+        budget_plans = sense_controller.get_all_budgets()
         return {
-            'budgets': [b.to_dict() for b in budgets],
-            'count': len(budgets)
+            'budgets': [plan.to_dict() for plan in budget_plans],
+            'count': len(budget_plans)
         }
     
-    @ns_budgets.doc('set_budget')
+    @ns_budgets.doc('create_budget_plan')
     @ns_budgets.expect(budget_input_model)
     def post(self):
-        """Set or update a budget"""
-        data = api.payload
+        """Create or update a budget plan"""
+        payload = api.payload
         
         try:
-            amount = float(data['amount'])
-            month = data['month']
-            category = data.get('category') or None
+            budget_amount = float(payload['amount'])
+            budget_period = payload['month']
+            budget_category = payload.get('category') or None
             
-            budget = sense_controller.set_budget(amount, month, category)
+            new_budget = sense_controller.set_budget(budget_amount, budget_period, budget_category)
             
             return {
                 'success': True,
-                'budget': budget.to_dict(),
-                'message': 'Budget set successfully'
+                'budget': new_budget.to_dict(),
+                'message': 'Budget plan created successfully'
             }, 201
         except Exception as e:
-            api.abort(400, f'Error setting budget: {str(e)}')
-
-@ns_budgets.route('/<string:budget_id>')
-class BudgetResource(Resource):
-    @ns_budgets.doc('delete_budget')
-    def delete(self, budget_id):
-        """Delete a budget"""
-        if sense_controller.delete_budget(budget_id):
-            return {'success': True, 'message': 'Budget deleted successfully'}
-        api.abort(404, f'Budget {budget_id} not found')
+            api.abort(400, f'Budget creation failed: {str(e)}')
 
 @ns_budgets.route('/analysis/<string:month>')
-class BudgetAnalysisResource(Resource):
-    @ns_budgets.doc('budget_analysis', params={'month': 'Month in YYYY-MM format'})
+class BudgetAnalyticsResource(Resource):
+    @ns_budgets.doc('analyze_budget_performance', params={'month': 'Period in YYYY-MM format'})
     def get(self, month):
-        """Get budget vs spending analysis for a month"""
-        expenses = spend_controller.get_all_expenses()
-        analysis = sense_controller.calculate_spending_vs_budget(expenses, month)
-        return analysis
+        """Analyze budget performance vs actual spending for a period"""
+        transaction_list = spend_controller.get_all_expenses()
+        performance_data = sense_controller.calculate_spending_vs_budget(transaction_list, month)
+        return performance_data
 
-# Additional routes for web interface (outside API namespace)
+@ns_budgets.route('/<string:budget_id>')
+class BudgetPlanResource(Resource):
+    @ns_budgets.doc('remove_budget_plan')
+    def delete(self, budget_id):
+        """Remove a budget plan"""
+        if sense_controller.delete_budget(budget_id):
+            return {'success': True, 'message': 'Budget plan removed successfully'}
+        api.abort(404, f'Budget plan {budget_id} does not exist')
+
+# Supplementary Web Interface Routes
 @app.route('/api/stats', methods=['GET'])
-def get_stats():
-    """Get expense statistics"""
-    expenses = spend_controller.get_all_expenses()
+def fetch_spending_statistics():
+    """Retrieve comprehensive spending statistics"""
+    transaction_list = spend_controller.get_all_expenses()
     
-    if not expenses:
+    if not transaction_list:
         return jsonify({
             'total': 0,
             'count': 0,
@@ -267,209 +269,213 @@ def get_stats():
             'by_date': {}
         })
     
-    total = sum(e.amount for e in expenses)
+    total_spent = sum(txn.amount for txn in transaction_list)
     
-    by_category = defaultdict(float)
-    for expense in expenses:
-        by_category[expense.category] += expense.amount
+    category_totals = defaultdict(float)
+    for txn in transaction_list:
+        category_totals[txn.category] += txn.amount
     
-    by_date = defaultdict(float)
-    for expense in expenses:
-        by_date[expense.date] += expense.amount
+    daily_totals = defaultdict(float)
+    for txn in transaction_list:
+        daily_totals[txn.date] += txn.amount
     
     return jsonify({
-        'total': total,
-        'count': len(expenses),
-        'by_category': dict(by_category),
-        'by_date': dict(sorted(by_date.items()))
+        'total': total_spent,
+        'count': len(transaction_list),
+        'by_category': dict(category_totals),
+        'by_date': dict(sorted(daily_totals.items()))
     })
 
 @app.route('/api/chart/category', methods=['GET'])
-def chart_by_category():
-    """Generate category pie chart"""
-    # Get month and year parameters from query string
-    month = request.args.get('month', type=int)
-    year = request.args.get('year', type=int)
+def generate_category_distribution():
+    """Generate spending distribution pie chart by category"""
+    # Extract period filters from query parameters
+    filter_month = request.args.get('month', type=int)
+    filter_year = request.args.get('year', type=int)
     
-    expenses = spend_controller.get_all_expenses()
+    transaction_list = spend_controller.get_all_expenses()
     
-    # Filter by month and year if provided
-    if month is not None and year is not None:
-        filtered_expenses = []
-        for expense in expenses:
-            expense_date = datetime.strptime(expense.date, '%Y-%m-%d')
-            if expense_date.month == month and expense_date.year == year:
-                filtered_expenses.append(expense)
-        expenses = filtered_expenses
+    # Apply period filtering if specified
+    if filter_month is not None and filter_year is not None:
+        period_filtered = []
+        for txn in transaction_list:
+            txn_date = datetime.strptime(txn.date, '%Y-%m-%d')
+            if txn_date.month == filter_month and txn_date.year == filter_year:
+                period_filtered.append(txn)
+        transaction_list = period_filtered
     
-    if not expenses:
-        # Return empty chart
+    if not transaction_list:
+        # Generate empty state visualization
         fig, ax = plt.subplots(figsize=(6, 5))
-        ax.text(0.5, 0.5, 'No data available', ha='center', va='center', fontsize=14)
+        ax.text(0.5, 0.5, 'No spending data to display', ha='center', va='center', fontsize=14)
         ax.axis('off')
     else:
-        by_category = defaultdict(float)
-        for expense in expenses:
-            by_category[expense.category] += expense.amount
+        category_sums = defaultdict(float)
+        for txn in transaction_list:
+            category_sums[txn.category] += txn.amount
         
         fig, ax = plt.subplots(figsize=(6, 5))
-        categories = list(by_category.keys())
-        amounts = list(by_category.values())
+        category_labels = list(category_sums.keys())
+        spending_values = list(category_sums.values())
         
-        colors = plt.cm.Set3(range(len(categories)))
-        ax.pie(amounts, labels=categories, autopct='%1.1f%%', startangle=90, colors=colors)
+        chart_colors = plt.cm.Set3(range(len(category_labels)))
+        ax.pie(spending_values, labels=category_labels, autopct='%1.1f%%', startangle=90, colors=chart_colors)
         
-        # Update title to show month/year if filtered
-        if month is not None and year is not None:
-            month_name = datetime(year, month, 1).strftime('%B %Y')
-            ax.set_title(f'Expenses by Category - {month_name}', fontsize=14, fontweight='bold')
+        # Customize title based on filter presence
+        if filter_month is not None and filter_year is not None:
+            period_label = datetime(filter_year, filter_month, 1).strftime('%B %Y')
+            ax.set_title(f'Category Breakdown - {period_label}', fontsize=14, fontweight='bold')
         else:
-            ax.set_title('Expenses by Category', fontsize=14, fontweight='bold')
+            ax.set_title('Spending by Category', fontsize=14, fontweight='bold')
     
-    img_bytes = io.BytesIO()
-    plt.savefig(img_bytes, format='png', bbox_inches='tight', dpi=100)
-    img_bytes.seek(0)
+    image_buffer = io.BytesIO()
+    plt.savefig(image_buffer, format='png', bbox_inches='tight', dpi=100)
+    image_buffer.seek(0)
     plt.close()
     
-    return send_file(img_bytes, mimetype='image/png')
+    return send_file(image_buffer, mimetype='image/png')
 
 @app.route('/api/budgets/current', methods=['GET'])
-def get_current_budget():
-    """Get budget for current month"""
-    current_month = datetime.now().strftime('%Y-%m')
-    budgets = sense_controller.get_budgets_by_month(current_month)
-    expenses = spend_controller.get_all_expenses()
-    analysis = sense_controller.calculate_spending_vs_budget(expenses, current_month)
+def fetch_active_budget_info():
+    """Retrieve current month's budget information and performance"""
+    active_period = datetime.now().strftime('%Y-%m')
+    period_budgets = sense_controller.get_budgets_by_month(active_period)
+    transaction_list = spend_controller.get_all_expenses()
+    performance_analysis = sense_controller.calculate_spending_vs_budget(transaction_list, active_period)
     
     return jsonify({
-        'budgets': [b.to_dict() for b in budgets],
-        'analysis': analysis
+        'budgets': [plan.to_dict() for plan in period_budgets],
+        'analysis': performance_analysis
     })
 
 @app.route('/api/chart/budget/<string:month>', methods=['GET'])
-def chart_budget(month):
-    """Generate budget vs spending chart"""
-    expenses = spend_controller.get_all_expenses()
-    analysis = sense_controller.calculate_spending_vs_budget(expenses, month)
+def visualize_budget_comparison(month):
+    """Generate comprehensive budget vs actual spending visualization"""
+    transaction_list = spend_controller.get_all_expenses()
+    performance_data = sense_controller.calculate_spending_vs_budget(transaction_list, month)
     
-    if analysis['total_budget'] == 0:
+    if performance_data['total_budget'] == 0:
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.text(0.5, 0.5, 'No budget set for this month', ha='center', va='center', fontsize=16)
+        ax.text(0.5, 0.5, 'No budget allocation for this period', ha='center', va='center', fontsize=16)
         ax.axis('off')
     else:
-        # Create budget comparison chart
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        # Generate dual-panel comparison visualization
+        fig, (gauge_ax, compare_ax) = plt.subplots(1, 2, figsize=(14, 6))
         
-        # Overall budget gauge
-        total_spent = analysis['total_spent']
-        total_budget = analysis['total_budget']
-        remaining = analysis['total_remaining']
+        # Left panel: Overall budget utilization gauge
+        actual_spent = performance_data['total_spent']
+        allocated_budget = performance_data['total_budget']
+        budget_remaining = performance_data['total_remaining']
         
-        colors_gauge = ['#48bb78' if remaining >= 0 else '#f56565', '#e2e8f0']
-        sizes_gauge = [min(total_spent, total_budget), max(0, remaining)]
+        gauge_colors = ['#48bb78' if budget_remaining >= 0 else '#f56565', '#e2e8f0']
+        gauge_portions = [min(actual_spent, allocated_budget), max(0, budget_remaining)]
         
-        if sum(sizes_gauge) > 0:
-            ax1.pie(sizes_gauge, labels=['Spent', 'Remaining'], autopct='%1.1f%%', 
-                   startangle=90, colors=colors_gauge)
-        ax1.set_title(f'Overall Budget\n${total_spent:.2f} / ${total_budget:.2f}', 
+        if sum(gauge_portions) > 0:
+            gauge_ax.pie(gauge_portions, labels=['Utilized', 'Available'], autopct='%1.1f%%', 
+                   startangle=90, colors=gauge_colors)
+        gauge_ax.set_title(f'Budget Utilization\n${actual_spent:.2f} of ${allocated_budget:.2f}', 
                      fontsize=14, fontweight='bold')
         
-        # Category comparison
-        if analysis['categories']:
-            categories = list(analysis['categories'].keys())
-            budgets = [analysis['categories'][c]['budget'] for c in categories]
-            spent = [analysis['categories'][c]['spent'] for c in categories]
+        # Right panel: Category-level comparison
+        if performance_data['categories']:
+            cat_names = list(performance_data['categories'].keys())
+            allocated_amounts = [performance_data['categories'][c]['budget'] for c in cat_names]
+            actual_amounts = [performance_data['categories'][c]['spent'] for c in cat_names]
             
-            x = range(len(categories))
-            width = 0.35
+            bar_positions = range(len(cat_names))
+            bar_width = 0.35
             
-            ax2.bar([i - width/2 for i in x], budgets, width, label='Budget', color='#4299e1')
-            ax2.bar([i + width/2 for i in x], spent, width, label='Spent', color='#ed8936')
+            compare_ax.bar([i - bar_width/2 for i in bar_positions], allocated_amounts, bar_width, 
+                          label='Allocated', color='#4299e1')
+            compare_ax.bar([i + bar_width/2 for i in bar_positions], actual_amounts, bar_width, 
+                          label='Actual', color='#ed8936')
             
-            ax2.set_xlabel('Categories')
-            ax2.set_ylabel('Amount ($)')
-            ax2.set_title('Budget vs Spending by Category', fontsize=14, fontweight='bold')
-            ax2.set_xticks(x)
-            ax2.set_xticklabels(categories, rotation=45, ha='right')
-            ax2.legend()
-            ax2.grid(axis='y', alpha=0.3)
+            compare_ax.set_xlabel('Spending Categories')
+            compare_ax.set_ylabel('Dollar Amount ($)')
+            compare_ax.set_title('Category-Level Budget Analysis', fontsize=14, fontweight='bold')
+            compare_ax.set_xticks(bar_positions)
+            compare_ax.set_xticklabels(cat_names, rotation=45, ha='right')
+            compare_ax.legend()
+            compare_ax.grid(axis='y', alpha=0.3)
         else:
-            ax2.text(0.5, 0.5, 'No category budgets set', ha='center', va='center', fontsize=14)
-            ax2.axis('off')
+            compare_ax.text(0.5, 0.5, 'No category-specific budgets', ha='center', va='center', fontsize=14)
+            compare_ax.axis('off')
     
     plt.tight_layout()
-    img_bytes = io.BytesIO()
-    plt.savefig(img_bytes, format='png', bbox_inches='tight', dpi=100)
-    img_bytes.seek(0)
+    image_buffer = io.BytesIO()
+    plt.savefig(image_buffer, format='png', bbox_inches='tight', dpi=100)
+    image_buffer.seek(0)
     plt.close()
     
-    return send_file(img_bytes, mimetype='image/png')
+    return send_file(image_buffer, mimetype='image/png')
 
 @app.route('/api/chart/monthly-trend', methods=['GET'])
-def chart_monthly_trend():
-    """Generate monthly spending trend chart"""
-    expenses = spend_controller.get_all_expenses()
+def generate_spending_timeline():
+    """Generate historical spending trend visualization"""
+    transaction_list = spend_controller.get_all_expenses()
     
-    if not expenses:
+    if not transaction_list:
         fig, ax = plt.subplots(figsize=(12, 6))
-        ax.text(0.5, 0.5, 'No expenses to display', ha='center', va='center', fontsize=16)
+        ax.text(0.5, 0.5, 'Insufficient data for trend analysis', ha='center', va='center', fontsize=16)
         ax.axis('off')
     else:
-        # Group expenses by month
-        monthly_data = defaultdict(lambda: {'spent': 0, 'budget': 0})
+        # Aggregate transactions by month
+        period_aggregates = defaultdict(lambda: {'spent': 0, 'budget': 0})
         
-        for expense in expenses:
-            month = expense.date[:7]  # YYYY-MM
-            monthly_data[month]['spent'] += expense.amount
+        for txn in transaction_list:
+            period_key = txn.date[:7]  # Extract YYYY-MM
+            period_aggregates[period_key]['spent'] += txn.amount
         
-        # Add budget data
-        for budget in sense_controller.get_all_budgets():
-            if not budget.category:  # Only total budgets
-                monthly_data[budget.month]['budget'] = budget.amount
+        # Incorporate budget allocations
+        for budget_plan in sense_controller.get_all_budgets():
+            if not budget_plan.category:  # Overall budgets only
+                period_aggregates[budget_plan.month]['budget'] = budget_plan.amount
         
-        # Sort by month
-        months = sorted(monthly_data.keys())
-        spent_values = [monthly_data[m]['spent'] for m in months]
-        budget_values = [monthly_data[m]['budget'] for m in months]
+        # Chronologically order periods
+        sorted_periods = sorted(period_aggregates.keys())
+        actual_spending = [period_aggregates[p]['spent'] for p in sorted_periods]
+        planned_budgets = [period_aggregates[p]['budget'] for p in sorted_periods]
         
-        # Create line chart
+        # Construct timeline visualization
         fig, ax = plt.subplots(figsize=(12, 6))
         
-        ax.plot(months, spent_values, marker='o', label='Spending', linewidth=2, color='#ed8936')
-        ax.plot(months, budget_values, marker='s', label='Budget', linewidth=2, 
-               linestyle='--', color='#4299e1')
+        ax.plot(sorted_periods, actual_spending, marker='o', label='Actual Spending', 
+               linewidth=2, color='#ed8936')
+        ax.plot(sorted_periods, planned_budgets, marker='s', label='Planned Budget', 
+               linewidth=2, linestyle='--', color='#4299e1')
         
-        ax.set_xlabel('Month', fontsize=12)
-        ax.set_ylabel('Amount ($)', fontsize=12)
-        ax.set_title('Monthly Spending Trend', fontsize=16, fontweight='bold')
+        ax.set_xlabel('Time Period', fontsize=12)
+        ax.set_ylabel('Dollar Amount ($)', fontsize=12)
+        ax.set_title('Spending Trend Over Time', fontsize=16, fontweight='bold')
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3)
         plt.xticks(rotation=45, ha='right')
         
-        # Highlight over-budget months
-        for i, month in enumerate(months):
-            if budget_values[i] > 0 and spent_values[i] > budget_values[i]:
-                ax.axvspan(i-0.3, i+0.3, alpha=0.2, color='red')
+        # Highlight overspending periods
+        for idx, period in enumerate(sorted_periods):
+            if planned_budgets[idx] > 0 and actual_spending[idx] > planned_budgets[idx]:
+                ax.axvspan(idx-0.3, idx+0.3, alpha=0.2, color='red')
         
         plt.tight_layout()
     
-    img_bytes = io.BytesIO()
-    plt.savefig(img_bytes, format='png', bbox_inches='tight', dpi=100)
-    img_bytes.seek(0)
+    image_buffer = io.BytesIO()
+    plt.savefig(image_buffer, format='png', bbox_inches='tight', dpi=100)
+    image_buffer.seek(0)
     plt.close()
     
-    return send_file(img_bytes, mimetype='image/png')
+    return send_file(image_buffer, mimetype='image/png')
 
-# Error handlers
+# Global Error Handlers
 @app.errorhandler(404)
-def not_found(error):
+def handle_not_found(error):
     if request.path.startswith('/api/'):
-        return jsonify({'error': 'Not found', 'success': False}), 404
+        return jsonify({'error': 'Resource not found', 'success': False}), 404
     return render_template('index.html')
 
 @app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error', 'success': False}), 500
+def handle_server_error(error):
+    return jsonify({'error': 'Server encountered an error', 'success': False}), 500
 
+# Application Entry Point
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

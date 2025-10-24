@@ -365,8 +365,21 @@ async function loadCategoryBreakdown() {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5); // Top 5 categories
         
-        // Draw bar chart for top categories
-        drawTopCategoriesChart(sortedCategories, total);
+        // Check if there's any data
+        const spendingBreakdownCard = document.querySelector('.spending-breakdown');
+        if (sortedCategories.length === 0 || total === 0) {
+            // Hide the entire Spending Breakdown card if no data
+            if (spendingBreakdownCard) {
+                spendingBreakdownCard.style.display = 'none';
+            }
+        } else {
+            // Show the card if there's data
+            if (spendingBreakdownCard) {
+                spendingBreakdownCard.style.display = 'block';
+            }
+            // Draw bar chart for top categories
+            drawTopCategoriesChart(sortedCategories, total);
+        }
         
     } catch (error) {
         console.error('Error loading category breakdown:', error);

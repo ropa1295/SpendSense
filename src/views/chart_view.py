@@ -1,21 +1,8 @@
-from matplotlib import pyplot as plt
+"""
+Legacy chart view module - maintained for backward compatibility.
+Redirects to the new visual_analytics module.
+"""
 
-def generate_expense_chart(expenses):
-    categories = {}
-    
-    for expense in expenses:
-        category = expense.category
-        amount = expense.amount
-        if category in categories:
-            categories[category] += amount
-        else:
-            categories[category] = amount
+from src.views.visual_analytics import generate_expense_chart
 
-    plt.figure(figsize=(10, 6))
-    plt.bar(categories.keys(), categories.values(), color='skyblue')
-    plt.title('Expenses by Category')
-    plt.xlabel('Category')
-    plt.ylabel('Total Amount')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
+__all__ = ['generate_expense_chart']
