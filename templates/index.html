@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="brand">
+                <span class="brand-icon">✓</span>
+                <h2>SpendSense</h2>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" onclick="showTab('transactions')">
+                    <span class="nav-icon">≡</span>
+                    Transactions
+                </button>
+                <button class="nav-btn" onclick="showTab('goals')">
+                    <span class="nav-icon">✓</span>
+                    Goals
+                </button>
+                <button class="nav-btn" onclick="showTab('history')">
+                    <span class="nav-icon">📊</span>
+                    History
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="quick-add-btn" onclick="toggleExpenseModal()">
+                    + Quick Add
+                </button>
+                <div class="user-profile">
+                    <div class="user-avatar">JD</div>
+                    <span class="user-name">Jane Doe</span>
+                </div>
+                <div class="help-section">
+                    <a href="#" class="help-link">Help</a>
+                    <a href="#" class="help-link">?</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-area">
+
+        <!-- Transactions Tab (Main Dashboard) -->
+        <div id="transactionsTab" class="tab-content active">
+            <div class="top-bar">
+                <div class="month-nav">
+                    <button class="month-nav-btn" onclick="previousMonth()">‹</button>
+                    <span class="current-month" id="currentMonth">October 2025</span>
+                    <button class="month-nav-btn" onclick="nextMonth()">›</button>
+                </div>
+                <div class="status-badge">On Track</div>
+                <div class="top-actions">
+                    <button class="icon-btn">🔔</button>
+                    <button class="icon-btn">🔔</button>
+                    <button class="btn-reset-month" onclick="resetMonthBudget()">🗑️ Reset Month</button>
+                    <button class="btn-new-expense" onclick="toggleExpenseModal()">+ New Expense</button>
+                </div>
+            </div>
+
+            <div class="dashboard-layout">
+                <!-- Financial Health Meter -->
+                <div class="dashboard-card financial-health">
+                    <h3>Financial Health Meter</h3>
+                    <div class="health-meter">
+                        <div class="meter-circle">
+                            <svg width="260" height="260" viewBox="0 0 260 260">
+                                <circle cx="130" cy="130" r="105" fill="none" stroke="#e0e0e0" stroke-width="25"/>
+                                <circle id="healthProgress" cx="130" cy="130" r="105" fill="none" stroke="#5fc3b4" 
+                                        stroke-width="25" stroke-dasharray="659" stroke-dashoffset="165"
+                                        transform="rotate(-90 130 130)" stroke-linecap="round"/>
+                            </svg>
+                            <div class="meter-content">
+                                <div class="meter-label">Net Position</div>
+                                <div class="meter-value" id="netPosition">$3,200</div>
+                                <div class="meter-sublabel">Budget Headroom: <span id="budgetHeadroom">$1,800</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spending Habit -->
+                <div class="dashboard-card spending-habit">
+                    <div class="card-header">
+                        <h3>Your Spending Habit</h3>
+                        <button class="icon-btn-small">⋮</button>
+                    </div>
+                    <p class="card-subtitle">Average Daily Spend:</p>
+                    <div class="spending-amount" id="averageDailySpend">$0.00</div>
+                </div>
+
+                <!-- Savings & Goals -->
+                <div class="dashboard-card savings-goals">
+                    <div class="card-header">
+                        <h3>Savings & Goals</h3>
+                        <button class="icon-btn-small" onclick="showTab('goals')">→</button>
+                    </div>
+                    <div id="dashboardGoalsList" class="dashboard-goals-list">
+                        <p class="no-data">No active goals. Set your first goal!</p>
+                    </div>
+                    <button class="action-link" onclick="showTab('goals')">View All Goals</button>
+                </div>
+
+                <!-- Spending Breakdown -->
+                <div class="dashboard-card spending-breakdown">
+                    <h3>Spending Breakdown</h3>
+                    <div class="breakdown-content">
+                        <div class="breakdown-chart">
+                            <div class="donut-chart">
+                                <img id="categoryChart" src="" alt="Category Chart" style="display: none; width: 100%;">
+                                <p id="noChartData" class="no-data">No data available</p>
+                            </div>
+                        </div>
+                        <div class="bar-chart">
+                            <div class="chart-title">Top Categories This Month</div>
+                            <canvas id="barChart" width="300" height="150"></canvas>
+                            <div class="chart-legend-bottom" id="topCategoriesSummary">
+                                <span><span class="legend-dot" style="background: #2c5f5d;"></span> Categories</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="dashboard-card recent-transactions">
+                    <h3>Recent Transactions</h3>
+                    <div class="transactions-list" id="expensesList">
+                        <p class="no-data">No transactions yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expense Modal -->
+        <div id="expenseModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="formTitle">Add New Expense</h2>
+                    <button class="close-btn" onclick="toggleExpenseModal()">×</button>
+                </div>
+                <form id="expenseForm">
+                    <input type="hidden" id="expenseId">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="amount">Amount ($)</label>
+                            <input type="number" id="amount" step="0.01" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date">Date</label>
+                            <input type="date" id="date" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" required>
+                            <option value="">Select category</option>
+                            <optgroup label="Housing & Utilities">
+                                <option value="Rent/Mortgage">Rent/Mortgage</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Internet & TV">Internet & TV</option>
+                                <option value="Phone/Mobile">Phone/Mobile</option>
+                                <option value="Maintenance/Repairs">Maintenance/Repairs</option>
+                                <option value="Home Insurance">Home Insurance</option>
+                            </optgroup>
+                            <optgroup label="Transportation">
+                                <option value="Fuel/Gas">Fuel/Gas</option>
+                                <option value="Public Transit">Public Transit</option>
+                                <option value="Car Payment">Car Payment</option>
+                                <option value="Car Insurance">Car Insurance</option>
+                                <option value="Car Maintenance">Car Maintenance</option>
+                                <option value="Parking/Tolls">Parking/Tolls</option>
+                                <option value="Ride Share/Taxi">Ride Share/Taxi</option>
+                            </optgroup>
+                            <optgroup label="Food & Dining">
+                                <option value="Groceries">Groceries</option>
+                                <option value="Dining Out">Dining Out</option>
+                                <option value="Coffee/Snacks">Coffee/Snacks</option>
+                                <option value="Alcohol">Alcohol</option>
+                            </optgroup>
+                            <optgroup label="Personal Care & Health">
+                                <option value="Health Insurance">Health Insurance</option>
+                                <option value="Medical Expenses">Medical Expenses</option>
+                                <option value="Prescriptions">Prescriptions</option>
+                                <option value="Personal Care">Personal Care</option>
+                                <option value="Gym/Fitness">Gym/Fitness</option>
+                            </optgroup>
+                            <optgroup label="Lifestyle & Entertainment">
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Hobbies">Hobbies</option>
+                                <option value="Subscriptions">Subscriptions</option>
+                                <option value="Travel">Travel</option>
+                                <option value="Pets">Pets</option>
+                                <option value="Shopping/Clothing">Shopping/Clothing</option>
+                                <option value="Education">Education</option>
+                            </optgroup>
+                            <optgroup label="Financial & Miscellaneous">
+                                <option value="Debt Payments">Debt Payments</option>
+                                <option value="Savings/Investments">Savings/Investments</option>
+                                <option value="Taxes">Taxes</option>
+                                <option value="Gifts">Gifts</option>
+                                <option value="Charity/Donations">Charity/Donations</option>
+                                <option value="Fees/Charges">Fees/Charges</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description (Optional)</label>
+                        <input type="text" id="description">
+                    </div>
+
+                    <div class="form-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="toggleExpenseModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Add Expense</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Goals Tab -->
+        <div id="goalsTab" class="tab-content">
+            <div class="top-bar">
+                <h2 style="margin: 0; color: #2d3748; font-size: 1.5rem;">Your Financial Goals</h2>
+                <div class="top-actions">
+                    <button class="icon-btn">🔔</button>
+                    <button class="icon-btn">🔔</button>
+                    <button class="btn-new-expense" onclick="toggleGoalModal()">+ Set New Goal</button>
+                </div>
+            </div>
+
+            <!-- Goals Stats -->
+            <div class="goals-stats-section">
+                <div class="goal-stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Target</div>
+                        <div class="stat-value-large" id="totalGoalTarget">$9,500</div>
+                    </div>
+                </div>
+                <div class="goal-stat-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Achieved Goals</div>
+                        <div class="stat-value-large" id="achievedGoalsCount">3</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Goals -->
+            <div class="goals-container">
+                <h3 style="margin: 0 0 20px 0; color: #2d3748;">Active Goals</h3>
+                <div id="activeGoalsList" class="goals-grid">
+                    <p class="no-data">No active goals. Set your first goal!</p>
+                </div>
+            </div>
+
+            <!-- Completed Goals -->
+            <div class="goals-container" style="margin-top: 32px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: #2d3748;">Completed Goals</h3>
+                    <button class="icon-btn-small" onclick="toggleCompletedGoals()">▼</button>
+                </div>
+                <div id="completedGoalsList" class="goals-grid">
+                    <p class="no-data">No completed goals yet</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goal Modal -->
+        <div id="goalModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="goalFormTitle">Set New Goal</h2>
+                    <button class="close-btn" onclick="toggleGoalModal()">×</button>
+                </div>
+                <form id="goalForm">
+                    <input type="hidden" id="goalId">
+                    
+                    <div class="form-group">
+                        <label for="goalName">Goal Name</label>
+                        <input type="text" id="goalName" placeholder="e.g., Vacation to Bali" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="goalTarget">Target Amount ($)</label>
+                            <input type="number" id="goalTarget" step="0.01" min="0" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="goalCurrent">Current Amount ($)</label>
+                            <input type="number" id="goalCurrent" step="0.01" min="0" value="0" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goalDeadline">Target Date</label>
+                        <input type="date" id="goalDeadline" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goalIcon">Icon</label>
+                        <select id="goalIcon">
+                            <option value="🏖️">🏖️ Vacation</option>
+                            <option value="💰">💰 Emergency Fund</option>
+                            <option value="💻">💻 Laptop</option>
+                            <option value="🏠">🏠 House</option>
+                            <option value="🚗">🚗 Car</option>
+                            <option value="🎓">🎓 Education</option>
+                            <option value="💍">💍 Wedding</option>
+                            <option value="👶">👶 Baby Fund</option>
+                            <option value="🎯">🎯 General Goal</option>
+                        </select>
+                    </div>
+
+                    <div class="form-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="toggleGoalModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="goalSubmitBtn">Create Goal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="historyTab" class="tab-content">
+            <div class="top-bar">
+                <h2 style="margin: 0; color: #2d3748; font-size: 1.5rem;">Historical Overview: Last 6 Months</h2>
+                <div class="top-actions">
+                    <button class="icon-btn">🔔</button>
+                    <button class="icon-btn">🔔</button>
+                    <button class="btn-new-expense" onclick="exportHistoryReport()">+ Export Report</button>
+                </div>
+            </div>
+
+            <!-- Spending & Income Trends Chart -->
+            <div class="history-chart-section">
+                <div class="history-card">
+                    <div class="card-header">
+                        <h3>Spending & Income Trends</h3>
+                        <div class="status-badge on-track">On Track</div>
+                    </div>
+                    <div class="chart-container-large">
+                        <canvas id="historyLineChart" width="800" height="300"></canvas>
+                    </div>
+                    <div class="chart-legend-history">
+                        <span><span class="legend-line green"></span> Total Income</span>
+                        <span><span class="legend-line red"></span> Incends</span>
+                        <span><span class="legend-line red"></span> Total Expenses</span>
+                        <span><span class="legend-line navy"></span> Money Left (Net Net Flow)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Metrics and Top Categories -->
+            <div class="history-metrics-section">
+                <div class="history-card metrics-card">
+                    <h3>📊 Key Metrics</h3>
+                    <div class="metrics-list">
+                        <div class="metric-item">
+                            <div class="metric-value" id="avgMonthlySpend">$185.80</div>
+                            <div class="metric-label">Average Monthly Spend</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="highestExpenseMonth">$165.00</div>
+                            <div class="metric-label">Highest Expense Month</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="totalSaved">$1,500</div>
+                            <div class="metric-label">Total Saved</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history-card categories-card">
+                    <div class="card-header">
+                        <h3>Top 3 Categories</h3>
+                        <span class="card-subtitle">(Period Total)</span>
+                    </div>
+                    <div class="top-categories-list">
+                        <div class="category-bar-item">
+                            <div class="category-bar" style="width: 100%; background: #ef4444;">
+                                <span class="category-amount">$3,600</span>
+                            </div>
+                        </div>
+                        <div class="category-bar-item">
+                            <div class="category-bar" style="width: 85%; background: #f87171;">
+                                <span class="category-amount">$7,49%</span>
+                            </div>
+                        </div>
+                        <div class="category-bar-item">
+                            <div class="category-bar" style="width: 70%; background: #fca5a5;">
+                                <span class="category-amount">Action</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Breakdown Table -->
+            <div class="history-card">
+                <div class="expandable-section">
+                    <button class="expandable-header" onclick="toggleHistoryDetails()">
+                        <span>Tiay Seen Did</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
+                    <div id="historyDetailsContent" class="expandable-content" style="display: none;">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Total Income</th>
+                                    <th>Total Expenses</th>
+                                    <th>Net Flow</th>
+                                    <th>Top Category</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr>
+                                    <td colspan="5" class="no-data">Loading historical data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Tab -->
+        <div id="budgetTab" class="tab-content">
+            <div class="budget-header">
+                <h2>Monthly Budget Management</h2>
+                <div class="month-selector">
+                    <label for="budgetMonth">Select Month:</label>
+                    <input type="month" id="budgetMonth">
+                    <button class="btn btn-small btn-primary" onclick="loadBudgetData()">Load</button>
+                </div>
+            </div>
+
+            <div class="budget-stats" id="budgetStats">
+                <div class="stat-card budget-stat">
+                    <h3>Total Budget</h3>
+                    <p class="stat-value" id="totalBudget">$0.00</p>
+                </div>
+                <div class="stat-card budget-stat">
+                    <h3>Total Spent</h3>
+                    <p class="stat-value" id="totalSpent">$0.00</p>
+                </div>
+                <div class="stat-card budget-stat">
+                    <h3>Remaining</h3>
+                    <p class="stat-value" id="totalRemaining">$0.00</p>
+                </div>
+                <div class="stat-card budget-stat">
+                    <h3>Status</h3>
+                    <p class="stat-value" id="budgetStatus">-</p>
+                </div>
+            </div>
+
+            <div class="budget-content">
+                <div class="budget-form-section">
+                    <h3>Set Budget</h3>
+                    <form id="budgetForm">
+                        <div class="form-group">
+                            <label for="budgetAmount">Amount ($)</label>
+                            <input type="number" id="budgetAmount" step="0.01" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="budgetCategory">Category (leave empty for total)</label>
+                            <select id="budgetCategory">
+                                <option value="">Total Budget</option>
+                                <optgroup label="Housing & Utilities">
+                                    <option value="Rent/Mortgage">Rent/Mortgage</option>
+                                    <option value="Utilities">Utilities</option>
+                                    <option value="Internet & TV">Internet & TV</option>
+                                    <option value="Phone/Mobile">Phone/Mobile</option>
+                                    <option value="Maintenance/Repairs">Maintenance/Repairs</option>
+                                    <option value="Home Insurance">Home Insurance</option>
+                                </optgroup>
+                                <optgroup label="Transportation">
+                                    <option value="Fuel/Gas">Fuel/Gas</option>
+                                    <option value="Public Transit">Public Transit</option>
+                                    <option value="Car Payment">Car Payment</option>
+                                    <option value="Car Insurance">Car Insurance</option>
+                                    <option value="Car Maintenance">Car Maintenance</option>
+                                    <option value="Parking/Tolls">Parking/Tolls</option>
+                                    <option value="Ride Share/Taxi">Ride Share/Taxi</option>
+                                </optgroup>
+                                <optgroup label="Food & Dining">
+                                    <option value="Groceries">Groceries</option>
+                                    <option value="Dining Out">Dining Out</option>
+                                    <option value="Coffee/Snacks">Coffee/Snacks</option>
+                                    <option value="Alcohol">Alcohol</option>
+                                </optgroup>
+                                <optgroup label="Personal Care & Health">
+                                    <option value="Health Insurance">Health Insurance</option>
+                                    <option value="Medical Expenses">Medical Expenses</option>
+                                    <option value="Prescriptions">Prescriptions</option>
+                                    <option value="Personal Care">Personal Care</option>
+                                    <option value="Gym/Fitness">Gym/Fitness</option>
+                                </optgroup>
+                                <optgroup label="Lifestyle & Entertainment">
+                                    <option value="Entertainment">Entertainment</option>
+                                    <option value="Hobbies">Hobbies</option>
+                                    <option value="Subscriptions">Subscriptions</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Pets">Pets</option>
+                                    <option value="Shopping/Clothing">Shopping/Clothing</option>
+                                    <option value="Education">Education</option>
+                                </optgroup>
+                                <optgroup label="Financial & Miscellaneous">
+                                    <option value="Debt Payments">Debt Payments</option>
+                                    <option value="Savings/Investments">Savings/Investments</option>
+                                    <option value="Taxes">Taxes</option>
+                                    <option value="Gifts">Gifts</option>
+                                    <option value="Charity/Donations">Charity/Donations</option>
+                                    <option value="Fees/Charges">Fees/Charges</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Set Budget</button>
+                    </form>
+
+                    <div class="chart-container">
+                        <h3>Budget vs Spending</h3>
+                        <img id="budgetChart" src="" alt="Budget Chart" style="display: none;">
+                        <p id="noBudgetChart" class="no-data">Set a budget to see comparison</p>
+                    </div>
+                </div>
+
+                <div class="budget-list-section">
+                    <h3>Category Budgets</h3>
+                    <div id="categoryBudgetsList" class="category-budgets">
+                        <p class="no-data">No category budgets set</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Monthly Spending Trend</h3>
+                <img id="trendChart" src="" alt="Trend Chart" style="display: none;">
+                <p id="noTrendChart" class="no-data">Add expenses to see trend</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
