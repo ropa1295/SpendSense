@@ -13,6 +13,7 @@
 - [Tech Stack](#-tech-stack)
 - [Installation](#-installation)
 - [Usage](#-usage)
+- [Testing](#-testing)
 - [Project Structure](#-project-structure)
 - [API Documentation](#-api-documentation)
 - [Screenshots](#-screenshots)
@@ -202,6 +203,108 @@ http://localhost:5000
 
 ---
 
+## 🧪 Testing
+
+SpendSense includes a comprehensive test suite to ensure code quality and reliability.
+
+### Test Coverage
+
+The test suite includes:
+- **Unit Tests**: Model and controller tests
+- **Integration Tests**: API endpoint tests
+- **Coverage**: 60+ test cases across 5 test files
+
+### Running Tests
+
+#### Run All Tests
+```bash
+# Using the test runner script
+python run_tests.py
+
+# Or using unittest directly
+python -m unittest discover tests
+```
+
+#### Run Specific Test File
+```bash
+# Using the test runner
+python run_tests.py --file test_transaction_model.py
+
+# Using unittest
+python -m unittest tests.test_transaction_model
+```
+
+#### Verbose Output
+```bash
+python run_tests.py --verbose
+```
+
+#### Quiet Output
+```bash
+python run_tests.py --quiet
+```
+
+### Test Structure
+
+```
+tests/
+├── __init__.py
+├── test_transaction_model.py      # Transaction model tests (11 cases)
+├── test_budget_model.py            # Budget model tests (9 cases)
+├── test_spend_controller.py        # Spend controller tests (14 cases)
+├── test_sense_controller.py        # Sense controller tests (12 cases)
+└── test_api_endpoints.py           # API integration tests (20+ cases)
+```
+
+### Test Categories
+
+**Model Tests** (`test_transaction_model.py`, `test_budget_model.py`)
+- Data model creation and validation
+- Property access and immutability
+- Edge cases and error handling
+- Data serialization (to_dict)
+
+**Controller Tests** (`test_spend_controller.py`, `test_sense_controller.py`)
+- CRUD operations (Create, Read, Update, Delete)
+- Business logic validation
+- Filtering and search functionality
+- CSV export functionality
+- Budget calculations and analysis
+
+**API Tests** (`test_api_endpoints.py`)
+- HTTP endpoint testing
+- Request/response validation
+- Error handling (404, 400, etc.)
+- Integration between layers
+- CORS and content-type headers
+
+### Writing Tests
+
+When adding new features, include corresponding tests:
+
+```python
+import unittest
+from controllers.spend_controller import SpendController
+
+class TestNewFeature(unittest.TestCase):
+    def setUp(self):
+        self.controller = SpendController()
+    
+    def test_new_functionality(self):
+        result = self.controller.new_method()
+        self.assertEqual(result, expected_value)
+```
+
+### Continuous Integration
+
+Tests can be integrated into CI/CD pipelines:
+```bash
+# Exit with code 0 if tests pass, 1 if they fail
+python run_tests.py
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -234,6 +337,14 @@ SpendSense/
 │       ├── csv_handler.py       # CSV export
 │       └── data_validator.py    # Input validation
 │
+├── tests/                       # Test suite
+│   ├── __init__.py
+│   ├── test_transaction_model.py    # Transaction model tests
+│   ├── test_budget_model.py         # Budget model tests
+│   ├── test_spend_controller.py     # Spend controller tests
+│   ├── test_sense_controller.py     # Sense controller tests
+│   └── test_api_endpoints.py        # API integration tests
+│
 ├── templates/                   # HTML templates
 │   └── index.html              # Main dashboard
 │
@@ -243,6 +354,7 @@ SpendSense/
 │   └── js/
 │       └── app.js              # Frontend JavaScript
 │
+├── run_tests.py                 # Test runner script
 ├── README.md                    # This file
 ├── WEB_APP.md                  # Web application architecture documentation
 ├── QUICKSTART.md               # Quick start guide

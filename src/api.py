@@ -12,7 +12,7 @@ api = Api(
     version='2.0',
     title='SpendSense Transaction API',
     description='Comprehensive financial transaction management system with filtering, analysis, and data export capabilities',
-    doc='/docs/',  # Interactive API documentation accessible at /docs/
+    doc='/api/docs/',  # Interactive API documentation accessible at /api/docs/
     prefix='/api'
 )
 
